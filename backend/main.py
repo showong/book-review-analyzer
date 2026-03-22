@@ -18,7 +18,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://book-review-analyzer.vercel.app",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "http://localhost:8000"
         ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
