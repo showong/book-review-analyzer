@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>은둔책방 — 리뷰 분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Serif+KR:wght@300;400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #141414;
+    --bg-2:     #1c1c1c;
+    --bg-3:     #242424;
+    --bg-4:     #2e2e2e;
+    --text:     #e8e4dc;
+    --text-2:   #a09890;
+    --text-3:   #5a5650;
+    --accent:   #c4623a;
+    --accent-2: #e8956a;
+    --gold:     #b89a6a;
+    --blue:     #4a8099;
+    --green:    #5a9068;
+    --border:   rgba(255,255,255,0.07);
+    --border-2: rgba(255,255,255,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Noto Serif KR', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.6;
+  }
+  body::after {
+    content: '';
+    position: fixed; right: -80px; bottom: -80px;
+    width: 500px; height: 500px;
+    background: url('logo.png') center/contain no-repeat;
+    opacity: 0.04; pointer-events: none; z-index: 0;
+  }
+
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex; align-items: center; gap: 20px;
+    background: rgba(20,20,20,0.92);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo-img { height: 36px; width: auto; opacity: 0.85; filter: brightness(1.4) contrast(0.9); }
+  .logo-divider { width: 1px; height: 20px; background: var(--border-2); }
+  .logo-sub { font-size: 11px; color: var(--text-3); letter-spacing: 0.25em; text-transform: uppercase; font-family: 'DM Mono', monospace; }
+
+  .main { max-width: 960px; margin: 0 auto; padding: 56px 24px 100px; position: relative; z-index: 1; }
+
+  .hero { margin-bottom: 52px; border-bottom: 1px solid var(--border); padding-bottom: 36px; }
+  .hero-title { font-family: 'Playfair Display', serif; font-size: 13px; letter-spacing: 0.3em; color: var(--gold); text-transform: uppercase; margin-bottom: 12px; font-weight: 400; }
+  .hero-desc { font-size: 13px; color: var(--text-3); font-family: 'DM Mono', monospace; letter-spacing: 0.05em; line-height: 1.7; }
+
+  .search-block { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; margin-bottom: 32px; align-items: end; }
+  .field label { display: block; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-3); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+  .field input { width: 100%; border: none; border-bottom: 1px solid var(--border-2); background: transparent; padding: 10px 0; font-size: 16px; font-family: 'Noto Serif KR', serif; color: var(--text); outline: none; transition: border-color 0.2s; }
+  .field input:focus { border-bottom-color: var(--gold); }
+  .field input::placeholder { color: var(--text-3); }
+
+  .btn-analyze { background: transparent; color: var(--text); border: 1px solid var(--border-2); padding: 12px 28px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .btn-analyze:hover { background: var(--accent); border-color: var(--accent); color: white; }
+  .btn-analyze:active { transform: scale(0.98); }
+  .btn-analyze:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* 히스토리 */
+  .history-wrap { margin-bottom: 40px; min-height: 24px; }
+  .history-header { display: flex; align-items: center; margin-bottom: 8px; min-height: 20px; }
+  .history-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-3); }
+  .btn-edit-history { margin-left: auto; background: transparent; border: none; color: var(--text-3); font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; padding: 2px 0; transition: color 0.15s; text-transform: uppercase; }
+  .btn-edit-history:hover { color: var(--text-2); }
+
+  .history-toolbar { display: none; align-items: center; gap: 12px; margin-bottom: 10px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--text-3); }
+  .history-toolbar.visible { display: flex; }
+  .btn-delete-selected { background: transparent; border: 1px solid rgba(196,98,58,0.4); color: var(--accent); padding: 4px 14px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+  .btn-delete-selected:hover { background: var(--accent); color: white; }
+  .btn-cancel-select { background: transparent; border: none; color: var(--text-3); cursor: pointer; font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 8px; transition: color 0.15s; }
+  .btn-cancel-select:hover { color: var(--text-2); }
+
+  .history { display: flex; flex-wrap: wrap; gap: 6px; }
+  .history-item { display: flex; align-items: center; border: 1px solid var(--border); transition: all 0.15s; }
+  .history-item:hover { border-color: var(--border-2); }
+  .history-item.selected { border-color: rgba(196,98,58,0.5); background: rgba(196,98,58,0.06); }
+
+  .history-cb { display: none; width: 28px; height: 28px; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border-right: 1px solid var(--border); color: var(--text-3); font-size: 11px; font-family: 'DM Mono', monospace; transition: color 0.15s; }
+  .history-cb.visible { display: flex; }
+  .history-cb.checked { color: var(--accent); }
+
+  .history-tag { font-size: 11px; font-family: 'DM Mono', monospace; padding: 4px 12px; color: var(--text-3); cursor: pointer; letter-spacing: 0.05em; background: transparent; border: none; transition: color 0.15s; white-space: nowrap; }
+  .history-tag:hover { color: var(--text-2); }
+
+  .error-block { padding: 14px 18px; border-left: 2px solid var(--accent); background: rgba(196,98,58,0.06); font-size: 13px; color: var(--accent); margin-bottom: 24px; display: none; font-family: 'DM Mono', monospace; }
+
+  /* Steps */
+  .steps { display: flex; margin-bottom: 40px; }
+  .step-tab { flex: 1; padding: 14px 20px; border: 1px solid var(--border); border-right: none; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--text-3); background: var(--bg-2); cursor: default; display: flex; align-items: center; gap: 8px; transition: all 0.2s; text-transform: uppercase; }
+  .step-tab:last-child { border-right: 1px solid var(--border); }
+  .step-tab.active { background: var(--bg-3); color: var(--text); border-bottom: 1px solid var(--gold); }
+  .step-tab.done { color: var(--green); cursor: pointer; }
+  .step-tab.done:hover { background: var(--bg-3); }
+  .step-num { width: 18px; height: 18px; border: 1px solid currentColor; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+  .step-tab.done .step-num { background: var(--green); border-color: var(--green); color: var(--bg); }
+  .step-tab.active .step-num { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+
+  .panel { display: none; animation: fadeUp 0.35s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  .loading-block { padding: 80px 20px; text-align: center; color: var(--text-3); font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 0.15em; }
+  .loader { width: 28px; height: 28px; border: 1px solid var(--bg-4); border-top-color: var(--gold); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 24px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Step 1 */
+  .s1-header { display: flex; align-items: flex-start; gap: 20px; border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 36px; }
+  .book-title-display { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .book-author-display { font-size: 13px; color: var(--text-3); font-style: italic; margin-top: 4px; }
+  .review-stats { margin-left: auto; display: flex; gap: 24px; flex-shrink: 0; }
+  .stat { text-align: right; }
+  .stat-num { font-family: 'DM Mono', monospace; font-size: 20px; color: var(--gold); }
+  .stat-label { font-size: 9px; color: var(--text-3); letter-spacing: 0.2em; text-transform: uppercase; margin-top: 2px; }
+
+  .s1-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 36px; }
+  @media (max-width: 680px) { .s1-grid { grid-template-columns: 1fr; } .search-block { grid-template-columns: 1fr; } .s1-header { flex-wrap: wrap; } .s3-grid { grid-template-columns: 1fr; } }
+
+  .section-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--text-3); margin-bottom: 14px; }
+  .summary-text { font-size: 14px; line-height: 1.9; color: var(--text-2); border-left: 1px solid var(--border-2); padding-left: 16px; }
+  .controversy-text { font-size: 13px; line-height: 1.75; color: var(--text-3); font-style: italic; background: var(--bg-2); padding: 14px 16px; border-top: 1px solid var(--border); margin-top: 16px; }
+  .emotional-text { font-size: 13px; line-height: 1.85; color: var(--text-2); padding: 16px; background: var(--bg-2); border-left: 2px solid var(--gold); }
+
+  .tags-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); font-family: 'DM Mono', monospace; color: var(--text-3); background: var(--bg-2); letter-spacing: 0.05em; }
+  .tag.pro { border-color: rgba(90,144,104,0.3); color: var(--green); background: rgba(90,144,104,0.05); }
+  .tag.con { border-color: rgba(196,98,58,0.3); color: var(--accent); background: rgba(196,98,58,0.05); }
+
+  .unique-card { border: 1px solid var(--border); padding: 20px 22px; margin-bottom: 10px; position: relative; background: var(--bg-2); transition: border-color 0.2s; }
+  .unique-card:hover { border-color: var(--border-2); }
+  .unique-card::before { content: '"'; font-family: 'Playfair Display', serif; font-size: 52px; color: var(--bg-4); position: absolute; top: 6px; left: 14px; line-height: 1; }
+  .unique-card-text { font-size: 13px; line-height: 1.8; color: var(--text-2); padding-left: 8px; }
+  .unique-card-reason { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; margin-top: 10px; letter-spacing: 0.04em; }
+  .unique-card-link { display: inline-block; margin-top: 10px; font-size: 10px; font-family: 'DM Mono', monospace; color: var(--gold); text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; transition: opacity 0.15s; border-bottom: 1px solid rgba(184,154,106,0.3); padding-bottom: 1px; }
+  .unique-card-link:hover { opacity: 0.7; }
+
+  .reading-tip { font-size: 13px; line-height: 1.8; color: var(--text-2); padding: 16px 20px; border: 1px solid rgba(74,128,153,0.2); background: rgba(74,128,153,0.04); }
+
+  .cta-next { margin-top: 48px; padding: 28px 32px; background: var(--bg-2); border: 1px solid var(--border); color: var(--text); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.2s; }
+  .cta-next:hover { border-color: var(--gold); background: var(--bg-3); }
+  .cta-next-text { font-size: 14px; color: var(--text-2); }
+  .cta-next-sub { font-size: 10px; color: var(--text-3); margin-top: 4px; font-family: 'DM Mono', monospace; letter-spacing: 0.1em; }
+  .cta-arrow { font-size: 20px; color: var(--gold); }
+
+  /* Step 2 */
+  .s2-wrap { max-width: 680px; }
+  .review-prompt { font-size: 13px; line-height: 1.85; color: var(--text-3); margin-bottom: 24px; font-family: 'DM Mono', monospace; letter-spacing: 0.03em; }
+  .my-review-textarea { width: 100%; min-height: 200px; border: 1px solid var(--border); border-bottom: 1px solid var(--border-2); background: var(--bg-2); padding: 18px; font-size: 15px; line-height: 1.85; font-family: 'Noto Serif KR', serif; color: var(--text); resize: vertical; outline: none; transition: border-color 0.2s; }
+  .my-review-textarea:focus { border-color: var(--gold); }
+  .my-review-textarea::placeholder { color: var(--text-3); }
+  .char-count { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-3); text-align: right; margin-top: 6px; letter-spacing: 0.05em; }
+  .char-count.warn { color: var(--accent); }
+  .btn-compare { margin-top: 20px; background: transparent; color: var(--gold); border: 1px solid rgba(184,154,106,0.4); padding: 14px 32px; font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.15em; cursor: pointer; transition: all 0.2s; text-transform: uppercase; }
+  .btn-compare:hover { background: var(--gold); color: var(--bg); border-color: var(--gold); }
+  .btn-compare:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Step 3 */
+  .score-hero { text-align: center; padding: 56px 20px; border-bottom: 1px solid var(--border); margin-bottom: 44px; }
+  .score-ring-wrap { position: relative; display: inline-block; margin-bottom: 24px; }
+  .score-ring { width: 140px; height: 140px; transform: rotate(-90deg); }
+  .score-ring-bg { fill: none; stroke: var(--bg-3); stroke-width: 6; }
+  .score-ring-fill { fill: none; stroke: var(--accent); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 408; stroke-dashoffset: 408; transition: stroke-dashoffset 1.4s cubic-bezier(0.34,1.56,0.64,1); }
+  .score-ring-fill.green { stroke: var(--green); }
+  .score-ring-fill.gold { stroke: var(--gold); }
+  .score-number { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 600; color: var(--text); line-height: 1; }
+  .score-number small { font-size: 14px; color: var(--text-3); font-family: 'DM Mono', monospace; }
+  .score-label-text { font-size: 16px; color: var(--text); margin-bottom: 10px; font-family: 'Playfair Display', serif; letter-spacing: 0.05em; }
+  .score-comment { font-size: 13px; color: var(--text-2); max-width: 520px; margin: 0 auto; line-height: 1.85; }
+
+  .s3-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 40px; }
+  .point-list { list-style: none; }
+  .point-list li { padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-2); line-height: 1.65; display: flex; gap: 10px; }
+  .point-list li::before { content: '—'; color: var(--text-3); flex-shrink: 0; font-family: 'DM Mono', monospace; }
+  .point-list.unique li::before { content: '◆'; color: var(--accent); font-size: 9px; margin-top: 4px; }
+  .point-list.common li::before { content: '◇'; color: var(--blue); font-size: 9px; margin-top: 4px; }
+
+  .similar-cards-title { font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 20px; color: var(--text); padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .similar-card { border: 1px solid var(--border); padding: 20px 22px; margin-bottom: 10px; display: flex; gap: 18px; background: var(--bg-2); transition: border-color 0.2s; }
+  .similar-card:hover { border-color: var(--border-2); }
+  .sim-score-bar { width: 3px; flex-shrink: 0; border-radius: 2px; background: var(--bg-4); position: relative; min-height: 60px; }
+  .sim-score-fill { position: absolute; bottom: 0; left: 0; right: 0; border-radius: 2px; background: var(--accent); }
+  .sim-content { flex: 1; }
+  .sim-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .sim-pct { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; color: var(--gold); flex-shrink: 0; }
+  .sim-reason { font-size: 11px; color: var(--text-3); font-family: 'DM Mono', monospace; letter-spacing: 0.03em; }
+  .sim-text { font-size: 13px; line-height: 1.75; color: var(--text-2); }
+  .sim-meta { margin-top: 10px; display: flex; gap: 10px; align-items: center; }
+  .sim-source-badge { font-size: 9px; font-family: 'DM Mono', monospace; padding: 2px 8px; border: 1px solid var(--border); color: var(--text-3); letter-spacing: 0.12em; text-transform: uppercase; }
+  .sim-source-badge.naver  { border-color: rgba(3,199,90,0.25); color: #3a9a5a; }
+  .sim-source-badge.google { border-color: rgba(74,128,153,0.3); color: var(--blue); }
+  .sim-source-badge.reddit { border-color: rgba(255,69,0,0.25); color: #cc4400; }
+  .sim-source-badge.daum   { border-color: rgba(255,197,0,0.3); color: #b89000; }
+  .sim-source-badge.brunch { border-color: rgba(0,180,130,0.3); color: #00a07a; }
+  .sim-link { font-size: 10px; color: var(--text-3); font-family: 'DM Mono', monospace; text-decoration: none; letter-spacing: 0.05em; transition: color 0.15s; }
+  .sim-link:hover { color: var(--gold); }
+
+  /* 새 검색 버튼 */
+  .btn-new-search {
+    display: block; width: 100%; margin-top: 48px;
+    padding: 22px 32px;
+    background: transparent;
+    border: 1px solid var(--border-2);
+    color: var(--text-2);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .btn-new-search:hover { border-color: var(--gold); color: var(--gold); background: rgba(184,154,106,0.04); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="logo.png" class="logo-img" alt="은둔책방">
+  <div class="logo-divider"></div>
+  <span class="logo-sub">리뷰 분석기</span>
+</div>
+
+<div class="main">
+
+  <div class="hero">
+    <div class="hero-title">은둔책방 · 리뷰 아카이브</div>
+    <div class="hero-desc">
+      네이버 · Daum · 브런치 · Google · Reddit 리뷰를 수집하고 AI가 분석합니다<br>
+      나의 감상과 다른 독자들의 시선을 비교해보세요
+    </div>
+  </div>
+
+  <!-- 검색 -->
+  <div class="search-block">
+    <div class="field">
+      <label>책 제목</label>
+      <input type="text" id="bookTitle" placeholder="예: 채식주의자" />
+    </div>
+    <div class="field">
+      <label>저자</label>
+      <input type="text" id="author" placeholder="예: 한강" />
+    </div>
+    <button class="btn-analyze" id="analyzeBtn" onclick="startAnalyze()">Analyze</button>
+  </div>
+
+  <!-- 히스토리 -->
+  <div class="history-wrap" id="historyWrap" style="display:none">
+    <div class="history-header">
+      <span class="history-label">최근 검색</span>
+      <button class="btn-edit-history" id="btnEditHistory" onclick="toggleEditHistory()">편집</button>
+    </div>
+    <div class="history-toolbar" id="historyToolbar">
+      <span id="selectedCount">0개 선택됨</span>
+      <button class="btn-delete-selected" onclick="deleteSelected()">삭제</button>
+      <button class="btn-cancel-select" onclick="cancelEditHistory()">취소</button>
+    </div>
+    <div class="history" id="history"></div>
+  </div>
+
+  <div class="error-block" id="errorBlock"></div>
+
+  <!-- Step 탭 -->
+  <div class="steps" id="steps" style="display:none">
+    <div class="step-tab active" id="tab1" onclick="goStep(1)">
+      <div class="step-num">1</div><span>리뷰 분석</span>
+    </div>
+    <div class="step-tab" id="tab2" onclick="goStep(2)">
+      <div class="step-num">2</div><span>나의 리뷰</span>
+    </div>
+    <div class="step-tab" id="tab3" onclick="goStep(3)">
+      <div class="step-num">3</div><span>유사도 분석</span>
+    </div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="panel active" id="panel1">
+    <div class="loading-block" id="s1loading" style="display:none">
+      <div class="loader"></div>
+      리뷰 수집 및 분석 중 — 30초~1분 소요됩니다
+    </div>
+    <div id="s1content"></div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="panel" id="panel2">
+    <div class="s2-wrap">
+      <p class="section-label" style="margin-bottom:20px">Step 2 — 나의 리뷰 입력</p>
+      <p class="review-prompt">
+        이 책을 읽고 어떠셨나요?<br>
+        인상 깊었던 장면, 나만의 해석, 다르게 느낀 점을 자유롭게 써주세요.
+      </p>
+      <textarea class="my-review-textarea" id="myReview"
+        placeholder="책을 읽고 나서 느낀 점, 기억에 남는 장면이나 문장, 다른 독자들과 다르게 생각한 부분 등을 자유롭게 적어주세요."
+        oninput="updateCharCount()"></textarea>
+      <div class="char-count" id="charCount">0자</div>
+      <div>
+        <button class="btn-compare" id="compareBtn" onclick="startCompare()">유사도 분석하기 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="panel" id="panel3">
+    <div class="loading-block" id="s3loading" style="display:none">
+      <div class="loader"></div>유사도 계산 중
+    </div>
+    <div id="s3content"></div>
+  </div>
+
+</div>
+
+<script>
+const API = "http://localhost:8000";
+let currentStep = 1;
+let currentBook = "";
+let currentAuthor = "";
+let editMode = false;
+let selectedKeys = new Set();
+
+// ── 분석 시작 ──
+async function startAnalyze() {
+  const title = document.getElementById("bookTitle").value.trim();
+  const author = document.getElementById("author").value.trim();
+  if (!title) return showError("책 제목을 입력해주세요.");
+
+  currentBook = title;
+  currentAuthor = author;
+  hideError();
+
+  document.getElementById("analyzeBtn").disabled = true;
+  document.getElementById("steps").style.display = "flex";
+  document.getElementById("s1loading").style.display = "block";
+  document.getElementById("s1content").innerHTML = "";
+  document.getElementById("myReview").value = "";
+  document.getElementById("charCount").textContent = "0자";
+
+  // 탭 초기화
+  setStep(1);
+  resetTabs();
+
+  try {
+    const res = await fetch(`${API}/analyze`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+     "x-token": "underbook2024"   // 아무 문자열로 직접 정하세요
+     },
+    
+    body: JSON.stringify({book_title: title, author})
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.detail);
+    renderStep1(json.data);
+    loadHistory();
+  } catch(e) {
+    showError(e.message);
+    document.getElementById("steps").style.display = "none";
+  } finally {
+    document.getElementById("analyzeBtn").disabled = false;
+    document.getElementById("s1loading").style.display = "none";
+  }
+}
+
+// ── 새 검색 초기화 ──
+function resetAll() {
+  // 입력 초기화
+  document.getElementById("bookTitle").value = "";
+  document.getElementById("author").value = "";
+  document.getElementById("myReview").value = "";
+  document.getElementById("charCount").textContent = "0자";
+
+  // 결과 초기화
+  document.getElementById("s1content").innerHTML = "";
+  document.getElementById("s3content").innerHTML = "";
+
+  // UI 초기화
+  document.getElementById("steps").style.display = "none";
+  resetTabs();
+  setStep(1);
+  hideError();
+
+  currentBook = "";
+  currentAuthor = "";
+
+  // 검색창으로 포커스
+  document.getElementById("bookTitle").focus();
+
+  // 페이지 상단으로 스크롤
+  window.scrollTo({top: 0, behavior: "smooth"});
+}
+
+function resetTabs() {
+  for (let i = 1; i <= 3; i++) {
+    const tab = document.getElementById(`tab${i}`);
+    tab.classList.remove("done");
+    tab.querySelector(".step-num").textContent = i;
+  }
+}
+
+// ── Step 1 렌더링 ──
+function renderStep1(data) {
+  const a = data.analysis;
+
+  const srcLabelMap = {naver:"네이버", google_books:"Google Books", reddit:"Reddit", daum:"Daum", brunch:"브런치"};
+
+  const uniqueReviewsHtml = (a.unique_reviews || []).map(u => {
+    const sourceLabel = srcLabelMap[u.source] || "출처";
+    const linkHtml = u.url
+      ? `<a href="${u.url}" target="_blank" class="unique-card-link">원문 보기 (${sourceLabel}) →</a>`
+      : "";
+    return `
+      <div class="unique-card">
+        <p class="unique-card-text">${u.content}</p>
+        <p class="unique-card-reason">→ ${u.reason}</p>
+        ${linkHtml}
+      </div>`;
+  }).join('');
+
+  document.getElementById("s1content").innerHTML = `
+    <div class="s1-header">
+      <div>
+        <div class="book-title-display">${data.book_title}</div>
+        ${data.author ? `<div class="book-author-display">${data.author}</div>` : ''}
+        ${data.english_title && data.english_title !== data.book_title
+          ? `<div style="font-size:11px;color:var(--text-3);font-family:'DM Mono',monospace;margin-top:6px;letter-spacing:0.05em">${data.english_title}${data.english_author ? ' · '+data.english_author : ''}</div>` : ''}
+      </div>
+      <div class="review-stats">
+        <div class="stat"><div class="stat-num">${data.review_count.naver||0}</div><div class="stat-label">네이버</div></div>
+        <div class="stat"><div class="stat-num">${data.review_count.daum||0}</div><div class="stat-label">Daum</div></div>
+        <div class="stat"><div class="stat-num">${data.review_count.google||0}</div><div class="stat-label">구글</div></div>
+        <div class="stat"><div class="stat-num">${data.review_count.reddit||0}</div><div class="stat-label">Reddit</div></div>
+        <div class="stat"><div class="stat-num">${data.review_count.total||0}</div><div class="stat-label">총 리뷰</div></div>
+      </div>
+    </div>
+
+    <div class="s1-grid">
+      <div>
+        <div class="section-label">전체 독자 반응 요약</div>
+        <p class="summary-text">${a.summary||''}</p>
+        ${a.controversy ? `<p class="controversy-text">💬 ${a.controversy}</p>` : ''}
+      </div>
+      <div>
+        <div class="section-label" style="margin-bottom:10px">공통 주제</div>
+        <div class="tags-row" style="margin-bottom:18px">
+          ${(a.common_themes||[]).map(t=>`<span class="tag">${t}</span>`).join('')}
+        </div>
+        <div class="section-label" style="margin-bottom:8px">독자 반응</div>
+        <div class="tags-row" style="margin-bottom:8px">
+          ${(a.pros||[]).map(t=>`<span class="tag pro">↑ ${t}</span>`).join('')}
+        </div>
+        <div class="tags-row">
+          ${(a.cons||[]).map(t=>`<span class="tag con">↓ ${t}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    ${a.emotional_response ? `
+    <div style="margin-bottom:32px">
+      <div class="section-label">감정적 반응</div>
+      <div class="emotional-text">${a.emotional_response}</div>
+    </div>` : ''}
+
+    <div style="margin-bottom:32px">
+      <div class="section-label">이색 리뷰</div>
+      ${uniqueReviewsHtml}
+    </div>
+
+    ${a.reading_tip ? `
+    <div style="margin-bottom:40px">
+      <div class="section-label">읽기 전 참고</div>
+      <p class="reading-tip">📌 ${a.reading_tip}</p>
+    </div>` : ''}
+
+    <div class="cta-next" onclick="goStep(2)">
+      <div>
+        <div class="cta-next-text">나의 리뷰를 입력하고 다른 독자들과 비교해보세요</div>
+        <div class="cta-next-sub">Step 2 — 나의 리뷰 입력</div>
+      </div>
+      <div class="cta-arrow">→</div>
+    </div>
+  `;
+  markTabDone(1);
+}
+
+// ── 유사도 분석 ──
+async function startCompare() {
+  const review = document.getElementById("myReview").value.trim();
+  if (review.length < 20) return showError("리뷰를 20자 이상 입력해주세요.");
+
+  document.getElementById("compareBtn").disabled = true;
+  goStep(3);
+  document.getElementById("s3loading").style.display = "block";
+  document.getElementById("s3content").innerHTML = "";
+
+  try {
+    const res = await fetch(`${API}/similar`, {
+  method: "POST",
+  headers: {
+      "Content-Type": "application/json",
+      "x-token": "underbook2024"   // 동일한 토큰
+    },
+      body: JSON.stringify({book_title: currentBook, author: currentAuthor, my_review: review})
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.detail);
+    renderStep3(json.similarity);
+    markTabDone(2);
+    markTabDone(3);
+  } catch(e) {
+    showError(e.message);
+    goStep(2);
+  } finally {
+    document.getElementById("compareBtn").disabled = false;
+    document.getElementById("s3loading").style.display = "none";
+  }
+}
+
+// ── Step 3 렌더링 ──
+function renderStep3(sim) {
+  const score = sim.overall_similarity_score;
+  const circumference = 408;
+  const offset = circumference - (score / 100) * circumference;
+  const ringClass = score >= 70 ? "gold" : score >= 40 ? "" : "green";
+
+  const srcMap = {naver:"naver", reddit:"reddit", daum:"daum", brunch:"brunch", google_books:"google"};
+  const lblMap = {naver:"NAVER", reddit:"REDDIT", daum:"DAUM", brunch:"BRUNCH", google_books:"GOOGLE"};
+
+  const similarCards = (sim.top_similar_reviews || []).map(r => {
+    const barH = Math.max(20, r.similarity_score);
+    const srcClass = srcMap[r.source] || "google";
+    const srcLabel = lblMap[r.source] || "GOOGLE";
+    return `
+    <div class="similar-card">
+      <div class="sim-score-bar">
+        <div class="sim-score-fill" style="height:${barH}%"></div>
+      </div>
+      <div class="sim-content">
+        <div class="sim-header">
+          <div class="sim-pct">${r.similarity_score}%</div>
+          <div class="sim-reason">${r.reason}</div>
+        </div>
+        <p class="sim-text">${r.content}</p>
+        <div class="sim-meta">
+          <span class="sim-source-badge ${srcClass}">${srcLabel}</span>
+          ${r.url ? `<a href="${r.url}" target="_blank" class="sim-link">원문 보기 →</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById("s3content").innerHTML = `
+    <div class="score-hero">
+      <div class="score-ring-wrap">
+        <svg class="score-ring" viewBox="0 0 140 140">
+          <circle class="score-ring-bg" cx="70" cy="70" r="65"/>
+          <circle class="score-ring-fill ${ringClass}" id="ringFill" cx="70" cy="70" r="65"
+            style="stroke-dashoffset:${circumference}"/>
+        </svg>
+        <div class="score-number">${score}<br><small>/ 100</small></div>
+      </div>
+      <div class="score-label-text">${sim.similarity_label}</div>
+      <p class="score-comment">${sim.analysis_comment}</p>
+    </div>
+
+    <div class="s3-grid" style="margin-bottom:40px">
+      <div>
+        <div class="section-label">나만의 독창적 시각</div>
+        <ul class="point-list unique">
+          ${(sim.my_unique_points||[]).map(p=>`<li>${p}</li>`).join('')}
+        </ul>
+      </div>
+      <div>
+        <div class="section-label">다른 독자들과 공통된 부분</div>
+        <ul class="point-list common">
+          ${(sim.common_with_others||[]).map(p=>`<li>${p}</li>`).join('')}
+        </ul>
+      </div>
+    </div>
+
+    <div class="similar-cards-title">가장 유사한 리뷰 Top 5</div>
+    ${similarCards}
+
+    <button class="btn-new-search" onclick="resetAll()">
+      + 새로운 책 검색하기
+    </button>
+  `;
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const ring = document.getElementById("ringFill");
+      if (ring) ring.style.strokeDashoffset = offset;
+    }, 100);
+  });
+}
+
+// ── 히스토리 ──
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API}/history`);
+    const json = await res.json();
+    const books = json.books || [];
+
+    const wrap = document.getElementById("historyWrap");
+    wrap.style.display = books.length > 0 ? "block" : "none";
+
+    document.getElementById("history").innerHTML = books.map(b => {
+      const safeKey = encodeURIComponent(b.key);
+      const isSelected = selectedKeys.has(b.key);
+      return `
+        <div class="history-item${isSelected ? ' selected' : ''}" id="hi_${safeKey}">
+          <div class="history-cb${editMode ? ' visible' : ''}${isSelected ? ' checked' : ''}"
+               onclick="toggleSelect('${b.key.replace(/'/g,"\\'")}')">
+            ${isSelected ? '✓' : '○'}
+          </div>
+          <span class="history-tag"
+                onclick="${editMode
+                  ? `toggleSelect('${b.key.replace(/'/g,"\\'")}')` 
+                  : `loadBook('${b.title.replace(/'/g,"\\'")}','${(b.author||'').replace(/'/g,"\\'")}')` }">
+            ${b.title}${b.author ? ' · '+b.author : ''}
+            <span style="color:var(--text-3);font-size:9px;margin-left:4px">${b.total}</span>
+          </span>
+        </div>`;
+    }).join('');
+  } catch {}
+}
+
+function toggleEditHistory() {
+  editMode = !editMode;
+  selectedKeys.clear();
+  document.getElementById("historyToolbar").classList.toggle("visible", editMode);
+  document.getElementById("btnEditHistory").textContent = editMode ? "완료" : "편집";
+  updateSelectedCount();
+  loadHistory();
+}
+
+function cancelEditHistory() {
+  editMode = false;
+  selectedKeys.clear();
+  document.getElementById("historyToolbar").classList.remove("visible");
+  document.getElementById("btnEditHistory").textContent = "편집";
+  loadHistory();
+}
+
+function toggleSelect(key) {
+  if (selectedKeys.has(key)) selectedKeys.delete(key);
+  else selectedKeys.add(key);
+  updateSelectedCount();
+  loadHistory();
+}
+
+function updateSelectedCount() {
+  document.getElementById("selectedCount").textContent = `${selectedKeys.size}개 선택됨`;
+}
+
+async function deleteSelected() {
+  if (selectedKeys.size === 0) return;
+  try {
+    const res = await fetch(`${API}/history`, {
+      method: "DELETE",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({keys: Array.from(selectedKeys)})
+    });
+    if (res.ok) {
+      selectedKeys.clear();
+      cancelEditHistory();
+    }
+  } catch {
+    showError("삭제 중 오류가 발생했어요.");
+  }
+}
+
+function loadBook(title, author) {
+  document.getElementById("bookTitle").value = title;
+  document.getElementById("author").value = author;
+  startAnalyze();
+}
+
+// ── 유틸 ──
+function goStep(n) {
+  if (n === 2 && !document.getElementById("s1content").innerHTML.trim()) return;
+  if (n === 3 && !document.getElementById("s1content").innerHTML.trim()) return;
+  setStep(n);
+}
+
+function setStep(n) {
+  currentStep = n;
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById(`panel${i}`).classList.toggle("active", i === n);
+    document.getElementById(`tab${i}`).classList.toggle("active", i === n);
+  }
+}
+
+function markTabDone(n) {
+  const tab = document.getElementById(`tab${n}`);
+  if (!tab.classList.contains("active")) {
+    tab.classList.add("done");
+    tab.querySelector(".step-num").textContent = "✓";
+  }
+}
+
+function updateCharCount() {
+  const len = document.getElementById("myReview").value.length;
+  const el = document.getElementById("charCount");
+  el.textContent = `${len}자`;
+  el.classList.toggle("warn", len > 0 && len < 20);
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorBlock");
+  el.textContent = "⚠ " + msg;
+  el.style.display = "block";
+}
+function hideError() {
+  document.getElementById("errorBlock").style.display = "none";
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && document.activeElement.tagName === "INPUT") startAnalyze();
+});
+
+loadHistory();
+</script>
+</body>
+</html>
