@@ -16,7 +16,10 @@ from analyzer.gemini import analyze_reviews, find_similar_reviews, get_english_t
 app = FastAPI(title="은둔책방 리뷰 분석기")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://book-review-analyzer.vercel.app",
+        "http://localhost:3000"
+        ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
