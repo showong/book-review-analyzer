@@ -5,7 +5,7 @@ class GoogleBlogCollector:
     BASE = "https://www.googleapis.com/books/v1/volumes"
 
     def __init__(self):
-        self.api_key = os.getenv("GOOGLE_API_KEY")
+        self.api_key = os.getenv("BOOKS_API_KEY")
 
     async def get_reviews(self, book_title: str, author: str = "", count: int = 10) -> list[dict]:
         reviews = []
