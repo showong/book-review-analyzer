@@ -1,6 +1,10 @@
 import httpx
 import os
 import re
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class NaverBlogCollector:
     BASE = "https://openapi.naver.com/v1/search/blog.json"
@@ -17,7 +21,10 @@ class NaverBlogCollector:
     async def get_reviews(self, book_title: str, author: str = "", count: int = 500) -> list[dict]:
         reviews = []
 
-        # 쿼리 2가지 교차 사용 (더 다양한 리뷰 수집)
+        # 키 확인 로그
+        client_id = os.getenv("NAVER_CLIENT_ID")
+        logger.info(f"NAVER_CLIENT_ID: {client_id[:5] if client_id else 'None'}...")
+
         queries = [
             f"{book_title} {author} 독후감".strip(),
             f"{book_title} {author} 책 리뷰".strip(),
@@ -28,7 +35,6 @@ class NaverBlogCollector:
             if len(reviews) >= count:
                 break
 
-            # 네이버 API: start 최대 1000, display 최대 100
             for start in range(1, 1000, 100):
                 if len(reviews) >= count:
                     break
@@ -42,8 +48,11 @@ class NaverBlogCollector:
                 async with httpx.AsyncClient(timeout=10) as client:
                     try:
                         r = await client.get(self.BASE, headers=self.headers, params=params)
+                        logger.info(f"네이버 API 상태코드: {r.status_code} / query: {query[:20]}")
+
                         r.raise_for_status()
                         items = r.json().get("items", [])
+                        logger.info(f"수집된 항목 수: {len(items)}")
 
                         for item in items:
                             content = self._clean(item.get("description", ""))
@@ -57,14 +66,13 @@ class NaverBlogCollector:
                                     "date": item.get("postdate", "")
                                 })
 
-                        # 100개 미만이면 더 이상 결과 없음
                         if len(items) < 100:
                             break
 
-                    except Exception:
+                    except Exception as e:
+                        logger.error(f"네이버 API 에러: {e}")
                         break
 
-        # URL 기준 중복 제거
         seen = set()
         unique = []
         for r in reviews:
@@ -72,4 +80,5 @@ class NaverBlogCollector:
                 seen.add(r["url"])
                 unique.append(r)
 
+        logger.info(f"최종 수집 수: {len(unique)}")
         return unique[:count]
